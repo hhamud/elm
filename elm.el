@@ -18,12 +18,19 @@
 ;;  Description
 ;;
 ;;; Code:
-
+;;;
+;;;
 (require 'request)
-(require 'auth-source)
-
 
 (defvar elm--claude-key nil "API key for Claude API.")
+(defvar elm--progress-reporter nil "Progress reporter for ELM.")
+
+(defun elm--progress-reporter (operation)
+  "Progress reporter for ELM.
+OPERATION should be 'start, or 'done."
+  (pcase operation
+    ('start (setq elm--progress-reporter (make-progress-reporter "ELM: Waiting for response from servers..." nil nil)))
+    ('done (progress-reporter-done elm--progress-reporter))))
 
 (defun elm--get-api-key ()
   "Retrieve the API key for Claude API from ENV."
@@ -35,9 +42,8 @@
           (goto-char (point-min))
           (if (re-search-forward regexp nil t)
               (setq elm--claude-key (match-string 1))
-            (message (format"%s key not found in .env file" "CLAUDE"))))
+            (message (format "%s key not found in .env file" "CLAUDE"))))
       (message "ENV file (.env) not found"))))
-
 
 (defun elm--set-api-key ()
   "Set the api key for claude."
@@ -45,22 +51,20 @@
     (elm--get-api-key)
     elm--claude-key))
 
-
 (defvar elm--header
   (let* ((headers `(("x-api-key" . ,(elm--set-api-key))
-      ("anthropic-version" . "2023-06-01")
-      ("Content-Type" . "application/json"))))
+                    ("anthropic-version" . "2023-06-01")
+                    ("Content-Type" . "application/json"))))
     headers))
 
 (defconst elm--url "https://api.anthropic.com/v1/messages")
 
 (defun elm--construct-content (content)
-  "Contruct the CONTENT to send to claude."
+  "Construct the CONTENT to send to claude."
   `(("model" . "claude-3-opus-20240229")
     ("max_tokens" . 1024)
     ("messages" . ((("role" . "user")
-                   ("content" . ,content))))))
-
+                    ("content" . ,content))))))
 
 (defun elm--parse-response (input output)
   "Parse the INPUT and OUTPUT into an org compatible format."
@@ -75,31 +79,31 @@
     (insert (elm--parse-code-blocks output))
     (switch-to-buffer-other-window "*elm*")))
 
-
 (defun elm--parse-code-blocks (content)
   "Convert any code CONTENT from markdown to org-code-blocks."
   (shell-command-to-string (format "pandoc -f markdown -t org <(echo %s)" (shell-quote-argument content))))
 
-
 (defun elm--process-request (input)
   "Send the INPUT request to CLAUDE."
+  (elm--progress-reporter 'start)
   (request elm--url
     :type "POST"
     :headers elm--header
     :data (json-encode (elm--construct-content input))
     :parser 'json-read
     :success (cl-function
-                (lambda (&key data &allow-other-keys)
-                  (let* ((resp-text (cdr (assoc 'content data)))
-                        (final-resp (cdr (assoc 'text (aref resp-text 0)))))
-                    (elm--parse-response input final-resp))))
+              (lambda (&key data &allow-other-keys)
+                (elm--progress-reporter 'done)
+                (let* ((resp-text (cdr (assoc 'content data)))
+                       (final-resp (cdr (assoc 'text (aref resp-text 0)))))
+                  (elm--parse-response input final-resp))))
     :error (cl-function
             (lambda (&key response &allow-other-keys)
+              (elm--progress-reporter 'done)
               (let* ((error-data (request-response-data response))
                      (error-type (cdr (assoc 'type (cdr (assoc 'error error-data)))))
                      (error-message (cdr (assoc 'message (cdr (assoc 'error error-data))))))
                 (message "Error: %s -%s" error-type error-message))))))
-
 
 (defun elm-rewrite (prompt start end)
   "Rewrite specific using the PROMPT and area from START to END requested."
