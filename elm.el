@@ -26,29 +26,31 @@
 (defvar elm--claude-key nil "API key for Claude API.")
 
 (defun elm--get-api-key ()
-  "Retrieve the API key for Claude API.
-The key is first looked up in the auth-sources, then the user is prompted if not found."
-  (unless elm--claude-key
-      (let ((secret (auth-source-user-and-password "api.anthropic.com")))
-        (if secret
-            (setq elm--claude-key (auth-info-password secret))
-          (setq elm--claude-key
-                (read-passwd "Enter your Claude API key: ")))
-        elm--claude-key)))
+  "Retrieve the API key for Claude API from ENV."
+  (let ((env-file (expand-file-name "~/.elm/.env"))
+        (regexp (format "^%s=\\(.*\\)$" "CLAUDE")))
+    (if (file-exists-p env-file)
+        (with-temp-buffer
+          (insert-file-contents env-file)
+          (goto-char (point-min))
+          (if (re-search-forward regexp nil t)
+              (setq elm--claude-key (match-string 1))
+            (message (format"%s key not found in .env file" "CLAUDE"))))
+      (message "ENV file (.env) not found"))))
 
-(defun elm--save-api-key ()
-  "Save the API key for Claude API to the auth-sources."
-  (when elm--claude-key
-    (auth-source-forget+ :host "api.anthropic.com")
-    (let ((spec `(:host "api.anthropic.com" :user "claude-api"))
-          (found `(:secret ,elm--claude-key)))
-      (auth-source-remember spec found))))
+
+(defun elm--set-api-key ()
+  "Set the api key for claude."
+  (unless elm--claude-key
+    (elm--get-api-key)
+    elm--claude-key))
 
 
 (defvar elm--header
-    `(("x-api-key" . ,elm--claude-key)
+  (let* ((headers `(("x-api-key" . ,(elm--set-api-key))
       ("anthropic-version" . "2023-06-01")
-      ("Content-Type" . "application/json")))
+      ("Content-Type" . "application/json"))))
+    headers))
 
 (defconst elm--url "https://api.anthropic.com/v1/messages")
 
