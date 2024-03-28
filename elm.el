@@ -7,8 +7,7 @@
 ;; Created: March 24, 2024
 ;; Modified: March 24, 2024
 ;; Version: 0.0.1
-;; Keywords: abbrev bib c calendar comm convenience data docs emulations extensions faces files frames games hardware help hypermedia i18n internal languages lisp local maint mail matching mouse multimedia news outlines processes terminals tex tools unix vc wp
-;; Homepage: https://github.com/user/elm
+;; Homepage: https://github.com/hhamud/elm
 ;; Package-Requires: ((emacs "29.1"))
 ;;
 ;; This file is not part of GNU Emacs.
@@ -27,7 +26,7 @@
 
 (defun elm--progress-reporter (operation)
   "Progress reporter for ELM.
-OPERATION should be 'start, or 'done."
+OPERATION should be \\='start, or \\='done."
   (pcase operation
     ('start (setq elm--progress-reporter (make-progress-reporter "ELM: Waiting for response from servers..." nil nil)))
     ('done (progress-reporter-done elm--progress-reporter))))

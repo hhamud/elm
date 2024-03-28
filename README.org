@@ -1,13 +1,15 @@
 #+TITLE: Elm
 
-An Emacs client for the Claude LLM API
-
-
+An Emacs client for the Claude LLM API.
 
 
 * Installation
-
-
+** For Doom Emacs
+In =~/.doom.d/package.el=
+#+begin_src elisp
+(package! elm
+  :recipe (:fetcher github :repo "hhamud/elm" :files "*.el")
+#+end_src
 
 
 * Running
