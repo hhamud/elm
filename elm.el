@@ -20,9 +20,13 @@
 ;;;
 ;;;
 (require 'request)
+(require 'transient)
 
 (defvar elm--claude-key nil "API key for Claude API.")
 (defvar elm--progress-reporter nil "Progress reporter for ELM.")
+(defconst elm--claude-models '(("Haiku" . "claude-3-haiku-20240307")
+                               ("Sonnet" . "claude-3-sonnet-20240229")
+                               ("Opus" . "claude-3-opus-20240229")) "List of Claude Models.")
 
 (defun elm--progress-reporter (operation)
   "Progress reporter for ELM.
@@ -60,7 +64,7 @@ OPERATION should be \\='start, or \\='done."
 
 (defun elm--construct-content (content)
   "Construct the CONTENT to send to claude."
-  `(("model" . "claude-3-opus-20240229")
+  `(("model" . ,model)
     ("max_tokens" . 1024)
     ("messages" . ((("role" . "user")
                     ("content" . ,content))))))
@@ -81,6 +85,7 @@ OPERATION should be \\='start, or \\='done."
 (defun elm--parse-code-blocks (content)
   "Convert any code CONTENT from markdown to org-code-blocks."
   (shell-command-to-string (format "pandoc -f markdown -t org <(echo %s)" (shell-quote-argument content))))
+
 
 (defun elm--process-request (input)
   "Send the INPUT request to CLAUDE."
