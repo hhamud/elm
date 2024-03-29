@@ -20,9 +20,28 @@
 ;;;
 ;;;
 (require 'request)
+(require 'transient)
+
 
 (defvar elm--claude-key nil "API key for Claude API.")
 (defvar elm--progress-reporter nil "Progress reporter for ELM.")
+(defconst elm--claude-models '(("haiku" . "claude-3-haiku-20240307")
+                               ("sonnet" . "claude-3-sonnet-20240229")
+                               ("opus" . "claude-3-opus-20240229")) "List of Claude Models.")
+
+(defvar elm--model "claude-3-haiku-20240307" "Model to be used.")
+
+(defun elm--select-model ()
+  "Prompt the user to select a Claude model from the list."
+  (interactive)
+  (let ((model-options elm--claude-models))
+    (let ((selected-model (assoc (completing-read "Select Claude Model: " model-options nil t) model-options)))
+      (setq elm--model (cdr selected-model)))))
+
+
+(transient-define-prefix elm-transient()
+        ["Arguments" ("m" "Claude Model" elm--select-model)])
+
 
 (defun elm--progress-reporter (operation)
   "Progress reporter for ELM.
@@ -60,7 +79,7 @@ OPERATION should be \\='start, or \\='done."
 
 (defun elm--construct-content (content)
   "Construct the CONTENT to send to claude."
-  `(("model" . "claude-3-opus-20240229")
+  `(("model" . ,elm--model)
     ("max_tokens" . 1024)
     ("messages" . ((("role" . "user")
                     ("content" . ,content))))))
@@ -81,6 +100,7 @@ OPERATION should be \\='start, or \\='done."
 (defun elm--parse-code-blocks (content)
   "Convert any code CONTENT from markdown to org-code-blocks."
   (shell-command-to-string (format "pandoc -f markdown -t org <(echo %s)" (shell-quote-argument content))))
+
 
 (defun elm--process-request (input)
   "Send the INPUT request to CLAUDE."
@@ -114,6 +134,11 @@ OPERATION should be \\='start, or \\='done."
   "Send the INPUT request to CLAUDE."
   (interactive "sPrompt: ")
   (elm--process-request input))
+
+(defun elm-menu()
+  "Select the menu for elm."
+  (interactive)
+  (elm-transient))
 
 (provide 'elm)
 ;;; elm.el ends here
