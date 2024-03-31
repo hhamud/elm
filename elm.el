@@ -39,9 +39,23 @@
       (setq elm--model (cdr selected-model)))))
 
 
-(transient-define-prefix elm-transient()
-        ["Arguments" ("m" "Claude Model" elm--select-model)])
+(defun elm--update-key (key)
+  "Update the CLAUDE API KEY."
+  (interactive "sKey: ")
+  (let ((env-file (expand-file-name "~/.elm/.env"))
+        (regexp (format "^%s=.*$" "CLAUDE")))
+    (with-temp-file env-file
+      (insert-file-contents env-file)
+      (goto-char (point-min))
+      (if (re-search-forward regexp nil t)
+          (replace-match (format "CLAUDE=%s" key))
+        (goto-char (point-max))
+        (insert (format "CLAUDE=%s
+" key))))
+    (message "API key updated successfully.")))
 
+(transient-define-prefix elm-transient()
+        ["Arguments" ("m" "Claude Model" elm--select-model) ("s" "save claude key" elm--update-key)])
 
 (defun elm--progress-reporter (operation)
   "Progress reporter for ELM.
