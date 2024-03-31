@@ -142,7 +142,7 @@ OPERATION should be \\='start, or \\='done."
   "Rewrite specific using the PROMPT and area from START to END requested."
   (interactive "sPrompt: \nr")
   (let ((input (buffer-substring-no-properties start end)))
-    (elm--process-request (concat prompt " " input))))
+    (elm--process-request (concat input "\n" prompt))))
 
 (defun elm-send-request (input)
   "Send the INPUT request to CLAUDE."
