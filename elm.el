@@ -43,7 +43,6 @@
         elm--claude-url
         elm--groq-url))
 
-
 (defun elm--select-model ()
   "Prompt the user to select a Claude model from the list."
   (interactive)
@@ -76,9 +75,9 @@ OPERATION should be \\='start, or \\='done."
             (message (format "%s key not found in .env file" company))))
       (message "ENV file (.env) not found"))))
 
-(defun elm--update-key (key company)
+(defun elm--update-key (company key)
   "Update COMPANY API KEYs."
-  (interactive "sKey: ")
+  (interactive "sCompany: \nsKey: ")
   (let ((env-file (expand-file-name "~/.elm/.env"))
         (regexp (format "^%s=.*$" company)))
     (with-temp-file env-file
@@ -89,7 +88,6 @@ OPERATION should be \\='start, or \\='done."
         (goto-char (point-max))
         (insert (format "%s=%s" company key))))
     (message "API key updated successfully.")))
-
 
 (defun elm--set-api-keys ()
   "Set the API keys for Claude and Groq."
@@ -131,9 +129,9 @@ OPERATION should be \\='start, or \\='done."
   "Convert any code CONTENT from markdown to org-code-blocks."
   (shell-command-to-string (format "pandoc -f markdown -t org <(echo %s)" (shell-quote-argument content))))
 
-
 (defun elm--process-request (input)
   "Send the INPUT request to CLAUDE."
+  (elm--set-api-keys)
   (elm--progress-reporter 'start)
   (request elm--url
     :type "POST"
