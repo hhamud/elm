@@ -102,7 +102,8 @@ OPERATION should be \\='start, or \\='done."
         (progn
         (push `("x-api-key" . ,elm--claude-key) headers)
         (push '("anthropic-version" . "2023-06-01") headers))
-      (push `("Authorization" . ,(concat "Bearer " elm--groq-key)) headers))))
+      (push `("Authorization" . ,(concat "Bearer " elm--groq-key)) headers))
+    headers))
 
 (defun elm--construct-content (content)
   "Construct the CONTENT to send to the API."
@@ -129,6 +130,20 @@ OPERATION should be \\='start, or \\='done."
   "Convert any code CONTENT from markdown to org-code-blocks."
   (shell-command-to-string (format "pandoc -f markdown -t org <(echo %s)" (shell-quote-argument content))))
 
+(defun elm--process-groq-response (input response)
+  "Process the RESPONSE from the Groq API with original INPUT."
+  (let* ((choices (cdr (assoc 'choices response)))
+         (first-choice (car choices))
+         (messages (cdr (assoc 'message first-choice)))
+         (content (cdr (assoc 'content messages))))
+    (elm--parse-response input content)))
+
+(defun elm--process-claude-response (input response)
+  "Process the RESPONSE from the CLAUDE API with original INPUT."
+  (let* ((resp-text (cdr (assoc 'content response)))
+        (final-resp (cdr (assoc 'text (aref resp-text 0)))))
+        (elm--parse-response input final-resp)))
+
 (defun elm--process-request (input)
   "Send the INPUT request to CLAUDE."
   (elm--set-api-keys)
@@ -141,9 +156,9 @@ OPERATION should be \\='start, or \\='done."
     :success (cl-function
               (lambda (&key data &allow-other-keys)
                 (elm--progress-reporter 'done)
-                (let* ((resp-text (cdr (assoc 'content data)))
-                       (final-resp (cdr (assoc 'text (aref resp-text 0)))))
-                  (elm--parse-response input final-resp))))
+                (if (string-prefix-p "claude" elm--model)
+                    (elm--process-claude-response input data)
+                    (elm--process-groq-response input data))))
     :error (cl-function
             (lambda (&key response &allow-other-keys)
               (elm--progress-reporter 'done)
