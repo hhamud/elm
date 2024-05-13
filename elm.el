@@ -64,26 +64,26 @@ OPERATION should be \\='start, or \\='done."
     ('start (setq elm--progress-reporter (make-progress-reporter "ELM: Waiting for response from servers..." nil nil)))
     ('done (progress-reporter-done elm--progress-reporter))))
 
-(defun elm--get-api-key ()
-  "Retrieve the API key for Claude API from ENV."
+(defun elm--get-api-key (company)
+  "Retrieve the API key for COMPANY API from ENV."
   (let ((env-file (expand-file-name "~/.elm/.env"))
-        (regexp (format "^%s=\\(.*\\)$" "CLAUDE")))
+        (regexp (format "^%s=\\(.*\\)$" company)))
     (if (file-exists-p env-file)
         (with-temp-buffer
           (insert-file-contents env-file)
           (goto-char (point-min))
           (if (re-search-forward regexp nil t)
               (setq elm--claude-key (match-string 1))
-            (message (format "%s key not found in .env file" "CLAUDE"))))
+            (message (format "%s key not found in .env file" company))))
       (message "ENV file (.env) not found"))))
 
 (defun elm--set-api-key ()
   "Set the api key for claude."
   (unless elm--claude-key
-    (elm--get-api-key)
+    (elm--get-api-key "CLAUDE")
     elm--claude-key))
 
-(defvar elm--header
+(defvar elm--claude-header
   (let* ((headers `(("x-api-key" . ,(elm--set-api-key))
                     ("anthropic-version" . "2023-06-01")
                     ("Content-Type" . "application/json"))))
@@ -153,6 +153,21 @@ OPERATION should be \\='start, or \\='done."
   "Select the menu for elm."
   (interactive)
   (elm-transient))
+
+(defvar elm--groq-key nil "API key for GROQ API.")
+(defconst elm--groq-url "https://api.groq.com/openai/v1/chat/completions")
+
+
+(defun elm--set-groq-api-key ()
+  "Set the api key for claude."
+  (unless elm--groq-key
+    (elm--get-api-key "GROQ")
+    elm--groq-key))
+
+(defvar elm--groq-header
+  (let* ((headers `(("Authorization: Bearer" . ,(elm--set-groq-api-key))
+                    ("Content-Type" . "application/json"))))
+    headers))
 
 (provide 'elm)
 ;;; elm.el ends here
