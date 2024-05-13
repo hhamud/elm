@@ -94,14 +94,15 @@ OPERATION should be \\='start, or \\='done."
                     ("Content-Type" . "application/json"))))
     headers))
 
-(defconst elm--url "https://api.anthropic.com/v1/messages")
+(defconst elm--claude-url "https://api.anthropic.com/v1/messages")
 
 (defun elm--construct-content (content)
-  "Construct the CONTENT to send to claude."
+  "Construct the CONTENT to send to the API."
   `(("model" . ,elm--model)
-    ("max_tokens" . 1024)
     ("messages" . ((("role" . "user")
-                    ("content" . ,content))))))
+                    ("content" . ,content))))
+    ,@(when (string-prefix-p "claude" elm--model)
+        '(("max_tokens" . 1024)))))
 
 (defun elm--parse-response (input output)
   "Parse the INPUT and OUTPUT into an org compatible format."
@@ -174,8 +175,7 @@ OPERATION should be \\='start, or \\='done."
     headers))
 
 
-(defconst elm--groq-models '(
-                               ) "List of groq Models.")
+
 
 (provide 'elm)
 ;;; elm.el ends here
