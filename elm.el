@@ -25,37 +25,42 @@
 
 (defvar elm--claude-key nil "API key for Claude API.")
 (defvar elm--progress-reporter nil "Progress reporter for ELM.")
-(defconst elm--claude-models '(("haiku" . "claude-3-haiku-20240307")
+(defconst elm--models '(("haiku" . "claude-3-haiku-20240307")
                                ("sonnet" . "claude-3-sonnet-20240229")
-                               ("opus" . "claude-3-opus-20240229")) "List of Claude Models.")
+                               ("opus" . "claude-3-opus-20240229")
+                               ("LLaMA3 8b" . "llama3-8b-8192")
+                               ("LLaMA3 70b" . "llama3-70b-8192")
+                               ("Mixtral 8x7b" . "mixtral-8x7b-32768")
+                               ("Gemma 7b" . "gemma-7b-it")) "List of Models.")
 
-(defvar elm--model "claude-3-haiku-20240307" "Model to be used.")
+
+(defvar elm--model "llama3-70b-8192" "Model to be used.")
 
 (defun elm--select-model ()
   "Prompt the user to select a Claude model from the list."
   (interactive)
-  (let ((model-options elm--claude-models))
-    (let ((selected-model (assoc (completing-read "Select Claude Model: " model-options nil t) model-options)))
+  (let ((model-options elm--models))
+    (let ((selected-model (assoc (completing-read "Select Model: " model-options nil t) model-options)))
       (setq elm--model (cdr selected-model)))))
 
 
-(defun elm--update-key (key)
-  "Update the CLAUDE API KEY."
+(defun elm--update-key (key company)
+  "Update COMPANY API KEYs."
   (interactive "sKey: ")
   (let ((env-file (expand-file-name "~/.elm/.env"))
-        (regexp (format "^%s=.*$" "CLAUDE")))
+        (regexp (format "^%s=.*$" company)))
     (with-temp-file env-file
       (insert-file-contents env-file)
       (goto-char (point-min))
       (if (re-search-forward regexp nil t)
-          (replace-match (format "CLAUDE=%s" key))
+          (replace-match (format "%s=%s" company key))
         (goto-char (point-max))
-        (insert (format "CLAUDE=%s
-" key))))
+        (insert (format "%s=%s
+" company key))))
     (message "API key updated successfully.")))
 
 (transient-define-prefix elm-transient()
-        ["Arguments" ("m" "Claude Model" elm--select-model) ("s" "save claude key" elm--update-key)])
+        ["Arguments" ("m" "Model" elm--select-model) ("s" "save API key" elm--update-key)])
 
 (defun elm--progress-reporter (operation)
   "Progress reporter for ELM.
@@ -157,7 +162,6 @@ OPERATION should be \\='start, or \\='done."
 (defvar elm--groq-key nil "API key for GROQ API.")
 (defconst elm--groq-url "https://api.groq.com/openai/v1/chat/completions")
 
-
 (defun elm--set-groq-api-key ()
   "Set the api key for claude."
   (unless elm--groq-key
@@ -168,6 +172,10 @@ OPERATION should be \\='start, or \\='done."
   (let* ((headers `(("Authorization: Bearer" . ,(elm--set-groq-api-key))
                     ("Content-Type" . "application/json"))))
     headers))
+
+
+(defconst elm--groq-models '(
+                               ) "List of groq Models.")
 
 (provide 'elm)
 ;;; elm.el ends here
