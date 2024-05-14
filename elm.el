@@ -5,8 +5,8 @@
 ;; Author: Hamza Hamud <self@hamzahamud.com>
 ;; Maintainer: Hamza Hamud <self@hamzahamud.com>
 ;; Created: March 24, 2024
-;; Modified: March 24, 2024
-;; Version: 0.0.1
+;; Modified: May 13, 2024
+;; Version: 0.0.2
 ;; Homepage: https://github.com/hhamud/elm
 ;; Package-Requires: ((emacs "29.1"))
 ;;
@@ -21,6 +21,8 @@
 ;;;
 (require 'request)
 (require 'transient)
+
+(setq debug-on-error t)
 
 (defvar elm--groq-key nil "API key for GROQ API.")
 (defvar elm--claude-key nil "API key for Claude API.")
@@ -61,6 +63,8 @@ OPERATION should be \\='start, or \\='done."
   (pcase operation
     ('start (setq elm--progress-reporter (make-progress-reporter "ELM: Waiting for response from servers..." nil nil)))
     ('done (progress-reporter-done elm--progress-reporter))))
+
+
 
 (defun elm--get-api-key (company)
   "Retrieve the API key for COMPANY API from ENV."
@@ -105,6 +109,7 @@ OPERATION should be \\='start, or \\='done."
       (push `("Authorization" . ,(concat "Bearer " elm--groq-key)) headers))
     headers))
 
+
 (defun elm--construct-content (content)
   "Construct the CONTENT to send to the API."
   `(("model" . ,elm--model)
@@ -130,19 +135,20 @@ OPERATION should be \\='start, or \\='done."
   "Convert any code CONTENT from markdown to org-code-blocks."
   (shell-command-to-string (format "pandoc -f markdown -t org <(echo %s)" (shell-quote-argument content))))
 
-(defun elm--process-groq-response (input response)
-  "Process the RESPONSE from the Groq API with original INPUT."
-  (let* ((choices (cdr (assoc 'choices response)))
-         (first-choice (car choices))
-         (messages (cdr (assoc 'message first-choice)))
-         (content (cdr (assoc 'content messages))))
-    (elm--parse-response input content)))
 
 (defun elm--process-claude-response (input response)
   "Process the RESPONSE from the CLAUDE API with original INPUT."
   (let* ((resp-text (cdr (assoc 'content response)))
         (final-resp (cdr (assoc 'text (aref resp-text 0)))))
         (elm--parse-response input final-resp)))
+
+(defun elm--process-groq-response (input response)
+  "Extract the content from the RESPONSE and add the original INPUT."
+  (let* ((choices (cdr (assoc 'choices response)))
+         (first-choice (aref choices 0))
+         (message (cdr (assoc 'message first-choice)))
+         (content (cdr (assoc 'content message))))
+    (elm--parse-response input content)))
 
 (defun elm--process-request (input)
   "Send the INPUT request to CLAUDE."
@@ -167,6 +173,7 @@ OPERATION should be \\='start, or \\='done."
                      (error-message (cdr (assoc 'message (cdr (assoc 'error error-data))))))
                 (message "Error: %s -%s" error-type error-message))))))
 
+
 (defun elm-rewrite (prompt start end)
   "Rewrite specific using the PROMPT and area from START to END requested."
   (interactive "sPrompt: \nr")
@@ -182,7 +189,6 @@ OPERATION should be \\='start, or \\='done."
   "Select the menu for elm."
   (interactive)
   (elm-transient))
-
 
 (provide 'elm)
 ;;; elm.el ends here
