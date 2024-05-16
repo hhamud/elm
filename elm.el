@@ -64,8 +64,6 @@ OPERATION should be \\='start, or \\='done."
     ('start (setq elm--progress-reporter (make-progress-reporter "ELM: Waiting for response from servers..." nil nil)))
     ('done (progress-reporter-done elm--progress-reporter))))
 
-
-
 (defun elm--get-api-key (company)
   "Retrieve the API key for COMPANY API from ENV."
   (let ((env-file (expand-file-name "~/.elm/.env"))
@@ -100,8 +98,10 @@ OPERATION should be \\='start, or \\='done."
   (unless elm--groq-key
     (setq elm--groq-key (elm--get-api-key "GROQ"))))
 
-(defvar elm--header
-  (let ((headers '(("Content-Type" . "application/json"))))
+
+(defun elm--header ()
+  "Generate the headers."
+  (let* ((headers '(("Content-Type" . "application/json"))))
     (if (string-prefix-p "claude" elm--model)
         (progn
         (push `("x-api-key" . ,elm--claude-key) headers)
@@ -156,7 +156,7 @@ OPERATION should be \\='start, or \\='done."
   (elm--progress-reporter 'start)
   (request elm--url
     :type "POST"
-    :headers elm--header
+    :headers (elm--header)
     :data (json-encode (elm--construct-content input))
     :parser 'json-read
     :success (cl-function
