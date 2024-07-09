@@ -24,33 +24,76 @@
 
 (setq debug-on-error t)
 
-(defvar elm--groq-key nil "API key for GROQ API.")
-(defvar elm--claude-key nil "API key for Claude API.")
+;; Constants and Variables
 
-(defconst elm--groq-url "https://api.groq.com/openai/v1/chat/completions")
-(defconst elm--claude-url "https://api.anthropic.com/v1/messages")
+(defgroup elm nil
+  "Emacs Language Model interface."
+  :group 'tools
+  :prefix "elm-")
 
-(defconst elm--models '(("haiku" . "claude-3-haiku-20240307")
-                               ("sonnet" . "claude-3-sonnet-20240229")
-                               ("opus" . "claude-3-opus-20240229")
-                               ("LLaMA3 8b" . "llama3-8b-8192")
-                               ("LLaMA3 70b" . "llama3-70b-8192")
-                               ("Mixtral 8x7b" . "mixtral-8x7b-32768")
-                               ("Gemma 7b" . "gemma-7b-it")) "List of Models.")
+(defcustom elm-env-file (expand-file-name "~/.elm/.env")
+  "Path to the .env file containing API keys."
+  :type 'file
+  :group 'elm)
 
-(defvar elm--model "llama3-70b-8192" "Model to be used.")
+(defvar elm--api-keys (make-hash-table :test 'equal)
+  "Hash table to store API keys.")
 
-(defvar elm--url
-    (if (string-prefix-p "claude" elm--model)
-        elm--claude-url
-        elm--groq-url))
+(defconst elm--api-urls
+  '(("claude" . "https://api.anthropic.com/v1/messages")
+    ("groq" . "https://api.groq.com/openai/v1/chat/completions")
+    ("ollama" . "http://localhost:11434/api/chat"))
+  "API endpoints for different services.")
+
+(defconst elm--models
+  '(("haiku" . "claude-3-haiku-20240307")
+    ("sonnet" . "claude-3-sonnet-20240229")
+    ("opus" . "claude-3-opus-20240229")
+    ("LLaMA3 8b" . "llama3-8b-8192")
+    ("LLaMA3 70b" . "llama3-70b-8192")
+    ("Mixtral 8x7b" . "mixtral-8x7b-32768")
+    ("Gemma 7b" . "gemma-7b-it"))
+  "Available language models.")
+
+(defvar elm--current-model "llama3-70b-8192"
+  "Currently selected model.")
+
+;; Utility Functions
+
+(defun elm--read-env-file ()
+  "Read API keys from the .env file."
+  (when (file-exists-p elm-env-file)
+    (with-temp-buffer
+      (insert-file-contents elm-env-file)
+      (while (re-search-forward "^\\([A-Z]+\\)=\\(.*\\)$" nil t)
+        (puthash (match-string 1) (match-string 2) elm--api-keys)))))
+
+(defun elm--get-api-key (service)
+  "Get the API key for SERVICE."
+  (or (gethash service elm--api-keys)
+      (user-error "API key for %s not found. Please set it in %s" service elm-env-file)))
+
+(defun elm--get-api-url ()
+  "Get the API URL for the current model."
+  (cdr (assoc (if (string-prefix-p "claude" elm--current-model) "claude" "groq") elm--api-urls)))
+
 
 (defun elm--select-model ()
   "Prompt the user to select a Claude model from the list."
   (interactive)
   (let ((model-options elm--models))
     (let ((selected-model (assoc (completing-read "Select Model: " model-options nil t) model-options)))
-      (setq elm--model (cdr selected-model)))))
+      (setq elm--current-model (cdr selected-model)))))
+
+(defun elm--construct-headers ()
+  "Construct headers for API request."
+  (let ((headers '(("Content-Type" . "application/json"))))
+    (if (string-prefix-p "claude" elm--current-model)
+        (progn
+          (push `("x-api-key" . ,(elm--get-api-key "CLAUDE")) headers)
+          (push '("anthropic-version" . "2023-06-01") headers))
+      (push `("Authorization" . ,(concat "Bearer " (elm--get-api-key "GROQ"))) headers))
+    headers))
 
 (defvar elm--progress-reporter nil "Progress reporter for ELM.")
 
@@ -63,19 +106,6 @@ OPERATION should be \\='start, or \\='done."
   (pcase operation
     ('start (setq elm--progress-reporter (make-progress-reporter "ELM: Waiting for response from servers..." nil nil)))
     ('done (progress-reporter-done elm--progress-reporter))))
-
-(defun elm--get-api-key (company)
-  "Retrieve the API key for COMPANY API from ENV."
-  (let ((env-file (expand-file-name "~/.elm/.env"))
-        (regexp (format "^%s=\\(.*\\)$" company)))
-    (if (file-exists-p env-file)
-        (with-temp-buffer
-          (insert-file-contents env-file)
-          (goto-char (point-min))
-          (if (re-search-forward regexp nil t)
-              (setq elm--claude-key (match-string 1))
-            (message (format "%s key not found in .env file" company))))
-      (message "ENV file (.env) not found"))))
 
 (defun elm--update-key (company key)
   "Update COMPANY API KEYs."
@@ -91,31 +121,13 @@ OPERATION should be \\='start, or \\='done."
         (insert (format "%s=%s" company key))))
     (message "API key updated successfully.")))
 
-(defun elm--set-api-keys ()
-  "Set the API keys for Claude and Groq."
-  (unless elm--claude-key
-    (setq elm--claude-key (elm--get-api-key "CLAUDE")))
-  (unless elm--groq-key
-    (setq elm--groq-key (elm--get-api-key "GROQ"))))
-
-
-(defun elm--header ()
-  "Generate the headers."
-  (let* ((headers '(("Content-Type" . "application/json"))))
-    (if (string-prefix-p "claude" elm--model)
-        (progn
-        (push `("x-api-key" . ,elm--claude-key) headers)
-        (push '("anthropic-version" . "2023-06-01") headers))
-      (push `("Authorization" . ,(concat "Bearer " elm--groq-key)) headers))
-    headers))
-
 
 (defun elm--construct-content (content)
   "Construct the CONTENT to send to the API."
-  `(("model" . ,elm--model)
+  `(("model" . ,elm--current-model)
     ("messages" . ((("role" . "user")
                     ("content" . ,content))))
-    ,@(when (string-prefix-p "claude" elm--model)
+    ,@(when (string-prefix-p "claude" elm--current-model)
         '(("max_tokens" . 1024)))))
 
 (defun elm--parse-response (input output)
@@ -152,17 +164,19 @@ OPERATION should be \\='start, or \\='done."
 
 (defun elm--process-request (input)
   "Send the INPUT request to CLAUDE."
-  (elm--set-api-keys)
   (elm--progress-reporter 'start)
-  (request elm--url
+  (elm--read-env-file)
+  (let ((url (elm--get-api-url))
+        (headers (elm--construct-headers)))
+  (request url
     :type "POST"
-    :headers (elm--header)
+    :headers headers
     :data (json-encode (elm--construct-content input))
     :parser 'json-read
     :success (cl-function
               (lambda (&key data &allow-other-keys)
                 (elm--progress-reporter 'done)
-                (if (string-prefix-p "claude" elm--model)
+                (if (string-prefix-p "claude" elm--current-model)
                     (elm--process-claude-response input data)
                     (elm--process-groq-response input data))))
     :error (cl-function
@@ -171,7 +185,7 @@ OPERATION should be \\='start, or \\='done."
               (let* ((error-data (request-response-data response))
                      (error-type (cdr (assoc 'type (cdr (assoc 'error error-data)))))
                      (error-message (cdr (assoc 'message (cdr (assoc 'error error-data))))))
-                (message "Error: %s -%s" error-type error-message))))))
+                (message "Error: %s -%s" error-type error-message)))))))
 
 
 (defun elm-rewrite (prompt start end)
