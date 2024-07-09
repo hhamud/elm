@@ -22,8 +22,6 @@
 (require 'request)
 (require 'transient)
 
-(setq debug-on-error t)
-
 ;; Constants and Variables
 
 (defgroup elm nil
@@ -165,7 +163,6 @@ OPERATION should be \\='start, or \\='done."
 (defun elm--process-request (input)
   "Send the INPUT request to CLAUDE."
   (elm--progress-reporter 'start)
-  (elm--read-env-file)
   (let ((url (elm--get-api-url))
         (headers (elm--construct-headers)))
   (request url
@@ -203,6 +200,12 @@ OPERATION should be \\='start, or \\='done."
   "Select the menu for elm."
   (interactive)
   (elm-transient))
+
+
+(with-eval-after-load 'elm
+  ;; Your startup code here
+  (elm--read-env-file)
+  (message "ELM package initialized"))
 
 (provide 'elm)
 ;;; elm.el ends here
