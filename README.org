@@ -1,6 +1,6 @@
 #+TITLE: Elm
 
-An Emacs client for the Claude LLM API.
+An Emacs client for the Claude and groq LLM API.
 
 * Installation
 ** For Doom Emacs
