@@ -21,6 +21,7 @@
 ;;;
 (require 'request)
 (require 'transient)
+(require 'auth-source)
 
 ;; Constants and Variables
 
@@ -29,7 +30,7 @@
   :group 'tools
   :prefix "elm-")
 
-(defcustom elm-env-file (expand-file-name "~/.elm/.env")
+(defcustom elm-env-file (expand-file-name "~/authinfo.gpg")
   "Path to the .env file containing API keys."
   :type 'file
   :group 'elm)
@@ -57,14 +58,21 @@
   "Currently selected model.")
 
 ;; Utility Functions
+;;
 
-(defun elm--read-env-file ()
-  "Read API keys from the .env file."
-  (when (file-exists-p elm-env-file)
-    (with-temp-buffer
-      (insert-file-contents elm-env-file)
-      (while (re-search-forward "^\\([A-Z]+\\)=\\(.*\\)$" nil t)
-        (puthash (match-string 1) (match-string 2) elm--api-keys)))))
+
+(defun elm--read-auth (&rest keys)
+  (let ((result (apply #'auth-source-search keys)))
+    (if result
+        (funcall (plist-get (car result) :secret))
+        nil)))
+
+(defun elm--read-auth-source ()
+  "Read the auth source and fetches keys."
+  (let ((api-keys elm--api-keys))
+    (puthash "claude" (elm--read-auth :host "elm" :host "CLAUDE") api-keys)
+    (puthash "groq" (elm--read-auth :host "elm" :host "GROQ") api-keys)
+    api-keys))
 
 (defun elm--get-api-key (service)
   "Get the API key for SERVICE."
@@ -104,21 +112,6 @@ OPERATION should be \\='start, or \\='done."
   (pcase operation
     ('start (setq elm--progress-reporter (make-progress-reporter "ELM: Waiting for response from servers..." nil nil)))
     ('done (progress-reporter-done elm--progress-reporter))))
-
-(defun elm--update-key (company key)
-  "Update COMPANY API KEYs."
-  (interactive "sCompany: \nsKey: ")
-  (let ((env-file (expand-file-name "~/.elm/.env"))
-        (regexp (format "^%s=.*$" company)))
-    (with-temp-file env-file
-      (insert-file-contents env-file)
-      (goto-char (point-min))
-      (if (re-search-forward regexp nil t)
-          (replace-match (format "%s=%s" company key))
-        (goto-char (point-max))
-        (insert (format "%s=%s" company key))))
-    (message "API key updated successfully.")))
-
 
 (defun elm--construct-content (content)
   "Construct the CONTENT to send to the API."
@@ -201,10 +194,9 @@ OPERATION should be \\='start, or \\='done."
   (interactive)
   (elm-transient))
 
-
 (with-eval-after-load 'elm
   ;; Your startup code here
-  (elm--read-env-file)
+  (elm--read-auth-source)
   (message "ELM package initialized"))
 
 (provide 'elm)
