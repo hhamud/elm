@@ -154,6 +154,7 @@ OPERATION should be \\='start, or \\='done."
 
 (defun elm--process-request (input)
   "Send the INPUT request to CLAUDE."
+  (elm--read-auth-source)
   (elm--progress-reporter 'start)
   (let ((url (elm--get-api-url))
         (headers (elm--construct-headers)))
@@ -193,10 +194,6 @@ OPERATION should be \\='start, or \\='done."
   (interactive)
   (elm-transient))
 
-(with-eval-after-load 'elm
-  ;; Your startup code here
-  (elm--read-auth-source)
-  (message "ELM package initialized"))
 
 (provide 'elm)
 ;;; elm.el ends here
