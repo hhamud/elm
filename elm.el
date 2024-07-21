@@ -30,7 +30,7 @@
   :group 'tools
   :prefix "elm-")
 
-(defcustom elm-env-file (expand-file-name "~/authinfo.gpg")
+(defcustom elm-env-file (expand-file-name "~/.authinfo.gpg")
   "Path to the .env file containing API keys."
   :type 'file
   :group 'elm)
@@ -58,10 +58,8 @@
   "Currently selected model.")
 
 ;; Utility Functions
-;;
-
-
 (defun elm--read-auth (&rest keys)
+  "Read the authsource file using the KEYS as selector."
   (let ((result (apply #'auth-source-search keys)))
     (if result
         (funcall (plist-get (car result) :secret))
@@ -70,9 +68,10 @@
 (defun elm--read-auth-source ()
   "Read the auth source and fetches keys."
   (let ((api-keys elm--api-keys))
-    (puthash "claude" (elm--read-auth :host "elm" :host "CLAUDE") api-keys)
-    (puthash "groq" (elm--read-auth :host "elm" :host "GROQ") api-keys)
+    (puthash "CLAUDE" (elm--read-auth :host "elm" :user "CLAUDE") api-keys)
+    (puthash "GROQ" (elm--read-auth :host "elm" :user "GROQ") api-keys)
     api-keys))
+
 
 (defun elm--get-api-key (service)
   "Get the API key for SERVICE."
@@ -104,7 +103,7 @@
 (defvar elm--progress-reporter nil "Progress reporter for ELM.")
 
 (transient-define-prefix elm-transient()
-        ["Arguments" ("m" "Model" elm--select-model) ("s" "save API key" elm--update-key)])
+        ["Arguments" ("m" "Model" elm--select-model)])
 
 (defun elm--progress-reporter (operation)
   "Progress reporter for ELM.
