@@ -47,11 +47,13 @@
 (defconst elm--models
   '(("haiku" . "claude-3-haiku-20240307")
     ("sonnet" . "claude-3-sonnet-20240229")
+    ("sonnet-3.5" . "claude-3-5-sonnet-20240620")
     ("opus" . "claude-3-opus-20240229")
     ("LLaMA3 8b" . "llama3-8b-8192")
     ("LLaMA3 70b" . "llama3-70b-8192")
     ("Mixtral 8x7b" . "mixtral-8x7b-32768")
     ("Gemma 7b" . "gemma-7b-it"))
+
   "Available language models.")
 
 (defvar elm--current-model "llama3-70b-8192"
