@@ -22,9 +22,9 @@
 (require 'request)
 (require 'transient)
 (require 'auth-source)
+(require 'json)
 
 ;; Constants and Variables
-
 (defgroup elm nil
   "Emacs Language Model interface."
   :group 'tools
@@ -37,6 +37,9 @@
 
 (defvar elm--api-keys (make-hash-table :test 'equal)
   "Hash table to store API keys.")
+
+(defvar elm--api-urls (make-hash-table :test 'equal)
+  "Hash table to store api urls.")
 
 (defvar elm--current-model "llama-3.1-70b-versatile"
   "Currently selected model.")
@@ -75,13 +78,22 @@
         (json-insert json-data)
         (write-file (expand-file-name model-json dir))))))
 
-;; make a call to each provider
-;; parse json response
-;; store data into json file
-(defun elm--update-models (models)
-  "update the MODELS list for each provider."
 
-  )
+(defun elm--extract-urls (data)
+  "Extract DATA from the model json file."
+  (let ((result '()))
+    (dolist (provider data)
+      (let ((baseurl (cdr (assoc 'baseurl provider)))
+            (chaturl (cdr (assoc 'chaturl provider))))
+        (push (list (car provider) baseurl chaturl) result)))
+    (nreverse result)))
+
+(defun elm--read-json ()
+  "Read json file from .elm folder"
+  (with-temp-buffer
+    (insert-file-contents (expand-file-name "~/.elm/model.json"))
+    (goto-char (point-min))
+    (json-read)))
 
 (defun elm--get-api-key (service)
   "Get the API key for SERVICE."
