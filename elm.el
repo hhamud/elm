@@ -38,27 +38,7 @@
 (defvar elm--api-keys (make-hash-table :test 'equal)
   "Hash table to store API keys.")
 
-(defconst elm--api-urls
-  '(("claude" . "https://api.anthropic.com/v1/messages")
-    ("groq" . "https://api.groq.com/openai/v1/chat/completions")
-    ("ollama" . "http://localhost:11434/api/chat"))
-  "API endpoints for different services.")
-
-
-(defconst elm--models
-  '(("haiku" . "claude-3-haiku-20240307")
-    ("sonnet" . "claude-3-sonnet-20240229")
-    ("sonnet-3.5" . "claude-3-5-sonnet-20240620")
-    ("opus" . "claude-3-opus-20240229")
-    ("LLaMA3 8b" . "llama3-8b-instant")
-    ("LLaMA3 70b" . "llama3.1-70b-versatile")
-    ("LLaMA3 405b" . "llama-3.1-405b-reasoning")
-    ("Mixtral 8x7b" . "mixtral-8x7b-32768")
-    ("Gemma 7b" . "gemma-7b-it"))
-
-  "Available language models.")
-
-(defvar elm--current-model "llama3-70b-8192"
+(defvar elm--current-model "llama-3.1-70b-versatile"
   "Currently selected model.")
 
 ;; Utility Functions
@@ -76,6 +56,32 @@
     (puthash "GROQ" (elm--read-auth :host "elm" :user "GROQ") api-keys)
     api-keys))
 
+(defun elm--create-dir ()
+  "Create the hidden .elm directory in the home directory and creates an additional
+  models.json file populated with the provider urls and models list"
+  (let ((dir (expand-file-name "~/.elm"))
+        (model-json "model.json")
+        (json-data
+                '(:claude (:url "https://api.anthropic.com/v1/messages"
+                         :models ["claude-3-haiku-20240307"
+                                  "claude-3-sonnet-20240229"
+                                  "claude-3-5-sonnet-20240620"
+                                  "claude-3-opus-20240229"])
+                        :groq (:baseurl "https://api.groq.com/openai/v1" :geturl "/models" :chaturl "/chat/completions" :models [])
+                        :ollama (:url "http://localhost:11434" :geturl "/api/tags" :chaturl "/api/chat" :models []))))
+    (when (not (file-exists-p dir))
+      (make-directory dir)
+      (with-temp-buffer
+        (json-insert json-data)
+        (write-file (expand-file-name model-json dir))))))
+
+;; make a call to each provider
+;; parse json response
+;; store data into json file
+(defun elm--update-models (models)
+  "update the MODELS list for each provider."
+
+  )
 
 (defun elm--get-api-key (service)
   "Get the API key for SERVICE."
@@ -97,11 +103,14 @@
 (defun elm--construct-headers ()
   "Construct headers for API request."
   (let ((headers '(("Content-Type" . "application/json"))))
-    (if (string-prefix-p "claude" elm--current-model)
+    (cond
+        ((string-prefix-p "claude" elm--current-model)
         (progn
           (push `("x-api-key" . ,(elm--get-api-key "CLAUDE")) headers)
-          (push '("anthropic-version" . "2023-06-01") headers))
+          (push '("anthropic-version" . "2023-06-01") headers)))
+        ((string-prefix-p "llama-3.1" elm--current-model)
       (push `("Authorization" . ,(concat "Bearer " (elm--get-api-key "GROQ"))) headers))
+    (t nil))
     headers))
 
 (defvar elm--progress-reporter nil "Progress reporter for ELM.")
@@ -123,6 +132,7 @@ OPERATION should be \\='start, or \\='done."
                     ("content" . ,content))))
     ,@(when (string-prefix-p "claude" elm--current-model)
         '(("max_tokens" . 1024)))))
+
 
 (defun elm--parse-response (input output)
   "Parse the INPUT and OUTPUT into an org compatible format."
