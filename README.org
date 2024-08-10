@@ -10,7 +10,9 @@ An Emacs client:
 In =~/.doom.d/package.el=
 #+begin_src elisp
 (package! elm
-  :recipe (:fetcher github :repo "hhamud/elm" :files "*.el")
+  :recipe (:fetcher github :repo "hhamud/elm" :files "elm.el")
+  :pin "8796efdc518fd542501467d97acb877c9bd34e5d")
+
 #+end_src
 
 In =~/.doom.d/config.el=
@@ -22,8 +24,8 @@ In =~/.doom.d/config.el=
 
 First git clone the package
 
-#+begin_src html
-git clone https://github.com/hhamud/elm.git
+#+begin_src bash
+git clone https://github.com/hhamud/elm.git && cd elm && git checkout 8796efdc518fd542501467d97acb877c9bd34e5d
 #+end_src
 
 In =~/.emacs.d/init.el= or =~/.emacs=
