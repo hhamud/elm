@@ -60,23 +60,25 @@
     api-keys))
 
 (defun elm--create-dir ()
-  "Create the hidden .elm directory in the home directory and creates an additional
-  models.json file populated with the provider urls and models list"
-  (let ((dir (expand-file-name "~/.elm"))
+  "Create the hidden .elm directory in the home directory.
+Create an additional models.json file populated with the
+provider urls and models list."
+  (let* ((dir (expand-file-name "~/.elm"))
         (model-json "model.json")
         (json-data
-                '(:claude (:url "https://api.anthropic.com/v1/messages"
+                '(:claude (:baseurl "https://api.anthropic.com/v1/messages"
                          :models ["claude-3-haiku-20240307"
                                   "claude-3-sonnet-20240229"
                                   "claude-3-5-sonnet-20240620"
                                   "claude-3-opus-20240229"])
                         :groq (:baseurl "https://api.groq.com/openai/v1" :geturl "/models" :chaturl "/chat/completions" :models [])
-                        :ollama (:url "http://localhost:11434" :geturl "/api/tags" :chaturl "/api/chat" :models []))))
-    (when (not (file-exists-p dir))
+                        :ollama (:baseurl "http://localhost:11434" :geturl "/api/tags" :chaturl "/api/chat" :models [])))
+    (json-encoding-pretty-print t)
+    (json-file (expand-file-name model-json dir)))
+    (unless (file-exists-p dir)
       (make-directory dir)
-      (with-temp-buffer
-        (json-insert json-data)
-        (write-file (expand-file-name model-json dir))))))
+      (with-temp-file json-file
+          (insert (json-encode json-data))))))
 
 
 (defun elm--extract-urls (data)
