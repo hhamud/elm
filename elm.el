@@ -20,6 +20,7 @@
 ;;;
 ;;;
 (require 'request)
+(require 'cl-lib)
 (require 'transient)
 (require 'auth-source)
 (require 'json)
@@ -35,14 +36,15 @@
   :type 'file
   :group 'elm)
 
+(cl-deftype elm--providers ()
+  "API providers for llms supported by this package."
+  '(member groq claude ollama))
+
 (defvar elm--api-keys (make-hash-table :test 'equal)
   "Hash table to store API keys.")
 
 (defvar elm--api-urls (make-hash-table :test 'equal)
   "Hash table to store api urls.")
-
-(defvar elm--current-model "llama-3.1-70b-versatile"
-  "Currently selected model.")
 
 ;; Utility Functions
 (defun elm--read-auth (&rest keys)
@@ -66,7 +68,9 @@ provider urls and models list."
   (let* ((dir (expand-file-name "~/.elm"))
         (model-json "model.json")
         (json-data
-                '(:claude (:baseurl "https://api.anthropic.com/v1/messages"
+                '(:claude (:baseurl "https://api.anthropic.com/v1"
+                         :geturl ""
+                         :chaturl "/messages"
                          :models ["claude-3-haiku-20240307"
                                   "claude-3-sonnet-20240229"
                                   "claude-3-5-sonnet-20240620"
@@ -81,17 +85,52 @@ provider urls and models list."
           (insert (json-encode json-data))))))
 
 
-(defun elm--extract-urls (data)
-  "Extract DATA from the model json file."
+(defun elm--extract-urls (data get)
+  "Extract DATA from the model json file.
+Choose either the GET url or the chat url"
   (let ((result '()))
     (dolist (provider data)
       (let ((baseurl (cdr (assoc 'baseurl provider)))
+            (geturl (cdr (assoc 'geturl provider)))
             (chaturl (cdr (assoc 'chaturl provider))))
-        (push (list (car provider) baseurl chaturl) result)))
+        (push (list (car provider) (if (equal get 0) geturl chaturl) result)))
     (nreverse result)))
 
+
+
+(defun elm--create-url (model get)
+  "Create the MODEL GET url from the json file."
+  (let* ((json-data (elm--read-json))
+         (urls (elm--extract-urls json-data get))
+         (model-url (assoc model urls)))
+    (if model-url
+        (format "%s%s" (cadr model-url) (caddr model-url))
+      (error "Model URL not found: %s" model))))
+
+;; read in json file
+;; join up string
+;; make a call to each provider
+;; parse json response
+;; store data into json file
+(defun elm--update-models (model)
+  "update the MODEL list for each provider."
+  (let ((url (elm--create-url model)))
+    (request url
+      :type "GET"
+      :parser 'json-read
+      :success (cl-function
+                (lambda (&key data &allow-other-keys)
+                (message "%s" data)))
+    :error (cl-function
+            (lambda (&key response &allow-other-keys)
+              (let* ((error-data (request-response-data response))
+                     (error-type (cdr (assoc 'type (cdr (assoc 'error error-data)))))
+                     (error-message (cdr (assoc 'message (cdr (assoc 'error error-data))))))
+                (message "Error: %s -%s" error-type error-message)))))))
+
+
 (defun elm--read-json ()
-  "Read json file from .elm folder"
+  "Read json file from .elm folder."
   (with-temp-buffer
     (insert-file-contents (expand-file-name "~/.elm/model.json"))
     (goto-char (point-min))
@@ -102,10 +141,9 @@ provider urls and models list."
   (or (gethash service elm--api-keys)
       (user-error "API key for %s not found. Please set it in %s" service elm-env-file)))
 
-(defun elm--get-api-url ()
-  "Get the API URL for the current model."
-  (cdr (assoc (if (string-prefix-p "claude" elm--current-model) "claude" "groq") elm--api-urls)))
 
+;;(elm--read-auth-source)
+;;(elm--update-models 'groq)
 
 (defun elm--select-model ()
   "Prompt the user to select a Claude model from the list."

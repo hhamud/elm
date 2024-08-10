@@ -1,6 +1,9 @@
 #+TITLE: Elm
 
-An Emacs client for the Claude and groq LLM API.
+An Emacs client:
+  - Claude
+  - Groq
+  - Ollama
 
 * Installation
 ** For Doom Emacs
@@ -13,4 +16,24 @@ In =~/.doom.d/package.el=
 In =~/.doom.d/config.el=
 #+begin_src emacs-lisp
 (use-package! elm)
+#+end_src
+
+** Vanilla Emacs
+
+First git clone the package
+
+#+begin_src html
+git clone https://github.com/hhamud/elm.git
+#+end_src
+
+In =~/.emacs.d/init.el= or =~/.emacs=
+#+begin_src elisp
+;; Add the package to load path
+(add-to-list 'load-path "~/path/to/package")
+
+;; Require the package
+(require 'elm)
+
+;;set the auth source file location if set differently
+(setq elm-env-file "/path/to/your/custom/env/file.gpg")
 #+end_src
