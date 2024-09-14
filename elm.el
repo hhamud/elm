@@ -46,6 +46,10 @@
 (defvar elm--api-urls (make-hash-table :test 'equal)
   "Hash table to store api urls.")
 
+(defvar elm--models-file (expand-file-name "~/.elm/model.json")
+  "File location of the models file.")
+
+
 ;; Utility Functions
 (defun elm--read-auth (&rest keys)
   "Read the authsource file using the KEYS as selector."
@@ -66,7 +70,6 @@
 Create an additional models.json file populated with the
 provider urls and models list."
   (let* ((dir (expand-file-name "~/.elm"))
-        (model-json "model.json")
         (json-data
                 '(:claude (:baseurl "https://api.anthropic.com/v1"
                          :geturl ""
@@ -77,11 +80,10 @@ provider urls and models list."
                                   "claude-3-opus-20240229"])
                         :groq (:baseurl "https://api.groq.com/openai/v1" :geturl "/models" :chaturl "/chat/completions" :models [])
                         :ollama (:baseurl "http://localhost:11434" :geturl "/api/tags" :chaturl "/api/chat" :models [])))
-    (json-encoding-pretty-print t)
-    (json-file (expand-file-name model-json dir)))
+    (json-encoding-pretty-print t))
     (unless (file-exists-p dir)
       (make-directory dir)
-      (with-temp-file json-file
+      (with-temp-file elm--models-file
           (insert (json-encode json-data))))))
 
 
@@ -91,10 +93,9 @@ provider urls and models list."
          (urls (elm--extract-urls json-data get))
          (model-url (assoc model urls)))
     (if model-url
-        (cadr model-url)  ; Simply return the URL associated with the model
+        (cadr model-url)
       (error "Model URL not found: %s" model))))
 
-;; Update elm--extract-urls to return complete URLs
 (defun elm--extract-urls (data get)
   "Extract DATA from the model json file.
 Choose either the GET url or the chat url"
@@ -112,7 +113,7 @@ Choose either the GET url or the chat url"
 (defun elm--read-json ()
   "Read json file from .elm folder."
   (with-temp-buffer
-    (insert-file-contents (expand-file-name "~/.elm/model.json"))
+    (insert-file-contents elm--models-file)
     (goto-char (point-min))
     (json-read)))
 
@@ -120,7 +121,6 @@ Choose either the GET url or the chat url"
   "Get the API key for SERVICE."
   (or (gethash service elm--api-keys)
       (user-error "API key for %s not found. Please set it in %s" service elm-env-file)))
-
 
 (defun elm--select-model ()
   "Prompt the user to select a Claude model from the list."
@@ -164,12 +164,42 @@ OPERATION should be \\='start, or \\='done."
         '(("max_tokens" . 1024)))))
 
 
-;; read in json file
-;; join up string
-;; make a call to each provider
-;; parse json response
-;; TODO: add a check for claude
-;; store data into json file
+(defun elm--update-model-list (json-file provider lisp-data)
+  "Extract model list from LISP-DATA and update JSON-FILE for the specified PROVIDER."
+  (let* ((json-object-type 'hash-table)
+         (json-array-type 'list)
+         (json-key-type 'string)
+         (data-array (cdr (assoc 'models lisp-data)))
+         (provider-key (symbol-name provider))
+         (json-data (json-read-file json-file))
+         (model-list (if (string= provider-key "groq")
+                         ;; groq parser
+                         (progn
+                           (mapcar (lambda (item)
+                                     (let ((result (list)))
+                                       (dolist (pair item)
+                                         (setq result (cons pair result)))
+                                       result)) data-array)
+                           (message "%s" data-array))
+                         ;; ollama parse
+                         (mapcar (lambda (item)
+                                   (cdr (assoc 'model item))) data-array))))
+    (if (gethash provider-key json-data)
+        (progn
+          (if (string= provider-key "groq")
+              ;; groq model parser
+                (puthash "models"
+                         (mapcar (lambda (x) (cdr (assoc 'id x))) model-list)
+                                (gethash provider-key json-data))
+            ;; ollama model parser
+                (puthash "models" model-list
+                         (gethash provider-key json-data)))
+          (with-temp-file json-file
+            (insert (json-encode json-data)))
+
+          (message "Updated model list for %s in %s" provider-key json-file))
+      (error "Provider %s not found in the JSON file" provider-key))))
+
 (defun elm--update-models (model)
   "Update the MODEL list for each provider."
   (let ((url (elm--create-url model 'geturl)))
@@ -179,14 +209,13 @@ OPERATION should be \\='start, or \\='done."
       :parser 'json-read
       :success (cl-function
                 (lambda (&key data &allow-other-keys)
-                (message "%s" data)))
+                (elm--update-model-list elm--models-file model data)))
     :error (cl-function
             (lambda (&key response &allow-other-keys)
               (let* ((error-data (request-response-data response))
                      (error-type (cdr (assoc 'type (cdr (assoc 'error error-data)))))
                      (error-message (cdr (assoc 'message (cdr (assoc 'error error-data))))))
                 (message "Error: %s -%s" error-type error-message)))))))
-
 
 
 (defun elm--parse-response (input output)
