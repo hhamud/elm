@@ -85,17 +85,17 @@ provider urls and models list."
           (insert (json-encode json-data))))))
 
 
+;; TODO:
 (defun elm--extract-urls (data get)
   "Extract DATA from the model json file.
 Choose either the GET url or the chat url"
   (let ((result '()))
     (dolist (provider data)
-      (let ((baseurl (cdr (assoc 'baseurl provider)))
-            (geturl (cdr (assoc 'geturl provider)))
-            (chaturl (cdr (assoc 'chaturl provider))))
-        (push (list (car provider) (if (equal get 0) geturl chaturl) result)))
+      (let* ((baseurl (cdr (assoc 'baseurl provider)))
+            (geturl(format "%s%s" baseurl (cdr (assoc 'geturl provider))))
+            (chaturl (format "%s%s" baseurl (cdr (assoc 'chaturl provider)))))
+        (push (list (car provider) (if (string= get "geturl") geturl chaturl)) result)))
     (nreverse result)))
-
 
 
 (defun elm--create-url (model get)
@@ -141,9 +141,6 @@ Choose either the GET url or the chat url"
   (or (gethash service elm--api-keys)
       (user-error "API key for %s not found. Please set it in %s" service elm-env-file)))
 
-
-;;(elm--read-auth-source)
-;;(elm--update-models 'groq)
 
 (defun elm--select-model ()
   "Prompt the user to select a Claude model from the list."
@@ -259,6 +256,7 @@ OPERATION should be \\='start, or \\='done."
   "Select the menu for elm."
   (interactive)
   (elm-transient))
+
 
 
 (provide 'elm)
