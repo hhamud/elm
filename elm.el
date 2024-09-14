@@ -85,48 +85,28 @@ provider urls and models list."
           (insert (json-encode json-data))))))
 
 
-;; TODO:
-(defun elm--extract-urls (data get)
-  "Extract DATA from the model json file.
-Choose either the GET url or the chat url"
-  (let ((result '()))
-    (dolist (provider data)
-      (let* ((baseurl (cdr (assoc 'baseurl provider)))
-            (geturl(format "%s%s" baseurl (cdr (assoc 'geturl provider))))
-            (chaturl (format "%s%s" baseurl (cdr (assoc 'chaturl provider)))))
-        (push (list (car provider) (if (string= get "geturl") geturl chaturl)) result)))
-    (nreverse result)))
-
-
 (defun elm--create-url (model get)
   "Create the MODEL GET url from the json file."
   (let* ((json-data (elm--read-json))
          (urls (elm--extract-urls json-data get))
          (model-url (assoc model urls)))
     (if model-url
-        (format "%s%s" (cadr model-url) (caddr model-url))
+        (cadr model-url)  ; Simply return the URL associated with the model
       (error "Model URL not found: %s" model))))
 
-;; read in json file
-;; join up string
-;; make a call to each provider
-;; parse json response
-;; store data into json file
-(defun elm--update-models (model)
-  "update the MODEL list for each provider."
-  (let ((url (elm--create-url model)))
-    (request url
-      :type "GET"
-      :parser 'json-read
-      :success (cl-function
-                (lambda (&key data &allow-other-keys)
-                (message "%s" data)))
-    :error (cl-function
-            (lambda (&key response &allow-other-keys)
-              (let* ((error-data (request-response-data response))
-                     (error-type (cdr (assoc 'type (cdr (assoc 'error error-data)))))
-                     (error-message (cdr (assoc 'message (cdr (assoc 'error error-data))))))
-                (message "Error: %s -%s" error-type error-message)))))))
+;; Update elm--extract-urls to return complete URLs
+(defun elm--extract-urls (data get)
+  "Extract DATA from the model json file.
+Choose either the GET url or the chat url"
+  (let ((result '()))
+    (dolist (provider data)
+      (let* ((baseurl (cdr (assoc 'baseurl provider)))
+             (endpoint (cdr (assoc get provider)))
+             (full-url (if endpoint
+                           (concat baseurl endpoint)
+                         baseurl)))
+        (push (list (car provider) full-url) result)))
+    (nreverse result)))
 
 
 (defun elm--read-json ()
@@ -149,18 +129,19 @@ Choose either the GET url or the chat url"
     (let ((selected-model (assoc (completing-read "Select Model: " model-options nil t) model-options)))
       (setq elm--current-model (cdr selected-model)))))
 
-(defun elm--construct-headers ()
-  "Construct headers for API request."
+(defun elm--construct-headers (model)
+  "Construct headers for API request for each MODEL."
   (let ((headers '(("Content-Type" . "application/json"))))
     (cond
-        ((string-prefix-p "claude" elm--current-model)
+        ((string= model "claude")
         (progn
           (push `("x-api-key" . ,(elm--get-api-key "CLAUDE")) headers)
           (push '("anthropic-version" . "2023-06-01") headers)))
-        ((string-prefix-p "llama-3.1" elm--current-model)
+        ((string= model "groq")
       (push `("Authorization" . ,(concat "Bearer " (elm--get-api-key "GROQ"))) headers))
     (t nil))
     headers))
+
 
 (defvar elm--progress-reporter nil "Progress reporter for ELM.")
 
@@ -181,6 +162,31 @@ OPERATION should be \\='start, or \\='done."
                     ("content" . ,content))))
     ,@(when (string-prefix-p "claude" elm--current-model)
         '(("max_tokens" . 1024)))))
+
+
+;; read in json file
+;; join up string
+;; make a call to each provider
+;; parse json response
+;; TODO: add a check for claude
+;; store data into json file
+(defun elm--update-models (model)
+  "Update the MODEL list for each provider."
+  (let ((url (elm--create-url model 'geturl)))
+    (request url
+      :type "GET"
+      :headers (elm--construct-headers model)
+      :parser 'json-read
+      :success (cl-function
+                (lambda (&key data &allow-other-keys)
+                (message "%s" data)))
+    :error (cl-function
+            (lambda (&key response &allow-other-keys)
+              (let* ((error-data (request-response-data response))
+                     (error-type (cdr (assoc 'type (cdr (assoc 'error error-data)))))
+                     (error-message (cdr (assoc 'message (cdr (assoc 'error error-data))))))
+                (message "Error: %s -%s" error-type error-message)))))))
+
 
 
 (defun elm--parse-response (input output)
