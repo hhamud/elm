@@ -169,31 +169,32 @@ OPERATION should be \\='start, or \\='done."
   (let* ((json-object-type 'hash-table)
          (json-array-type 'list)
          (json-key-type 'string)
-         (data-array (cdr (assoc 'models lisp-data)))
+         ;;(data-array (cdr (assoc 'models lisp-data)))
          (provider-key (symbol-name provider))
          (json-data (json-read-file json-file))
          (model-list (if (string= provider-key "groq")
-                         ;; groq parser
                          (progn
+                         ;; groq parser
                            (mapcar (lambda (item)
                                      (let ((result (list)))
                                        (dolist (pair item)
                                          (setq result (cons pair result)))
-                                       result)) data-array)
-                           (message "%s" data-array))
+                                       result)) (cdr (assoc 'data lisp-data))))
                          ;; ollama parse
                          (mapcar (lambda (item)
-                                   (cdr (assoc 'model item))) data-array))))
+                                   (cdr (assoc 'model item))) (cdr (assoc 'models lisp-data))))))
     (if (gethash provider-key json-data)
         (progn
           (if (string= provider-key "groq")
               ;; groq model parser
+              (progn
                 (puthash "models"
                          (mapcar (lambda (x) (cdr (assoc 'id x))) model-list)
-                                (gethash provider-key json-data))
+                                (gethash provider-key json-data)))
             ;; ollama model parser
+            (progn
                 (puthash "models" model-list
-                         (gethash provider-key json-data)))
+                         (gethash provider-key json-data))))
           (with-temp-file json-file
             (insert (json-encode json-data)))
 
@@ -217,6 +218,7 @@ OPERATION should be \\='start, or \\='done."
                      (error-message (cdr (assoc 'message (cdr (assoc 'error error-data))))))
                 (message "Error: %s -%s" error-type error-message)))))))
 
+(elm--update-models 'groq)
 
 (defun elm--parse-response (input output)
   "Parse the INPUT and OUTPUT into an org compatible format."
