@@ -49,6 +49,11 @@
 (defvar elm--models-file (expand-file-name "~/.elm/model.json")
   "File location of the models file.")
 
+(defvar elm--current-model nil "Current model that is running.")
+
+(defvar elm--current-provider nil "Current model that is running.")
+
+(defvar elm--progress-reporter nil "Progress reporter for ELM.")
 
 ;; Utility Functions
 (defun elm--read-auth (&rest keys)
@@ -122,13 +127,6 @@ Choose either the GET url or the chat url"
   (or (gethash service elm--api-keys)
       (user-error "API key for %s not found. Please set it in %s" service elm-env-file)))
 
-(defun elm--select-model ()
-  "Prompt the user to select a Claude model from the list."
-  (interactive)
-  (let ((model-options elm--models))
-    (let ((selected-model (assoc (completing-read "Select Model: " model-options nil t) model-options)))
-      (setq elm--current-model (cdr selected-model)))))
-
 (defun elm--construct-headers (model)
   "Construct headers for API request for each MODEL."
   (let ((headers '(("Content-Type" . "application/json"))))
@@ -142,15 +140,43 @@ Choose either the GET url or the chat url"
     (t nil))
     headers))
 
+(defun elm--select-model ()
+  "Prompt the user to select a model from all available providers."
+  (interactive)
+  (let* ((json-object-type 'hash-table)
+         (json-array-type 'list)
+         (json-key-type 'string)
+         (json-file elm--models-file) ; Replace with actual path
+         (json-data (json-read-file json-file))
+         (model-options '()))
 
-(defvar elm--progress-reporter nil "Progress reporter for ELM.")
+    ;; Collect all models from all providers
+    (maphash (lambda (provider provider-data)
+               (let ((models (gethash "models" provider-data)))
+                 (dolist (model models)
+                   (let ((full-model-name (format "%s-%s" provider model)))
+                     (push (cons full-model-name (cons full-model-name provider))
+                           model-options)))))
+             json-data)
 
-(transient-define-prefix elm-transient()
-        ["Arguments" ("m" "Model" elm--select-model)])
+    ;; Sort model options alphabetically
+    (setq model-options (sort model-options (lambda (a b) (string< (car a) (car b)))))
+
+    ;; Prompt user to select a model
+    (let* ((selected-option (completing-read "Select Model: " model-options nil t))
+           (selected-model-data (cdr (assoc selected-option model-options))))
+      (setq elm--current-model (car selected-model-data))
+      (setq elm--current-provider (cdr selected-model-data))
+      (message "Selected model: %s (Provider: %s)" elm--current-model elm--current-provider))))
+
+
+(transient-define-prefix elm-transient ()
+  ["Arguments"
+   ("m" "Model" elm--select-model)])
+
 
 (defun elm--progress-reporter (operation)
-  "Progress reporter for ELM.
-OPERATION should be \\='start, or \\='done."
+  "Progress reporter for elm OPERATION should be 'start, or 'done."
   (pcase operation
     ('start (setq elm--progress-reporter (make-progress-reporter "ELM: Waiting for response from servers..." nil nil)))
     ('done (progress-reporter-done elm--progress-reporter))))
@@ -218,7 +244,6 @@ OPERATION should be \\='start, or \\='done."
                      (error-message (cdr (assoc 'message (cdr (assoc 'error error-data))))))
                 (message "Error: %s -%s" error-type error-message)))))))
 
-(elm--update-models 'groq)
 
 (defun elm--parse-response (input output)
   "Parse the INPUT and OUTPUT into an org compatible format."
