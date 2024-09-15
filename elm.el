@@ -24,6 +24,7 @@
 (require 'transient)
 (require 'auth-source)
 (require 'json)
+(require 'org)
 
 ;; Constants and Variables
 (defgroup elm nil
@@ -250,14 +251,15 @@ Choose either the GET url or the chat url"
                 (message "Error: %s -%s" error-type error-message)))))))
 
 
-(defun elm--parse-response (input output)
+;;TODO: for the elm-rewrite, place the input at the top and the code block at the bottom
+(defun elm--parse-response (input output &optional code-block)
   "Parse the INPUT and OUTPUT into an org compatible format."
   (with-current-buffer (get-buffer-create "*elm*")
     (goto-char (point-max))
     (newline)
     (newline)
     (org-mode)
-    (insert (format "* %s" input))
+    (insert (format "* %s\n%s" input code-block))
     (newline)
     (newline)
     (insert (elm--parse-code-blocks output))
@@ -267,25 +269,25 @@ Choose either the GET url or the chat url"
   "Convert any code CONTENT from markdown to org-code-blocks."
   (shell-command-to-string (format "pandoc -f markdown -t org <(echo %s)" (shell-quote-argument content))))
 
-(defun elm--process-ollama-response (input response)
+(defun elm--process-ollama-response (input response &optional code-block)
   "Process the RESPONSE from the CLAUDE API with original INPUT."
-        (elm--parse-response input (cdr (assoc 'content (cdr (assoc 'message response))))))
+        (elm--parse-response input (cdr (assoc 'content (cdr (assoc 'message response)))) code-block))
 
-(defun elm--process-claude-response (input response)
+(defun elm--process-claude-response (input response &optional code-block)
   "Process the RESPONSE from the CLAUDE API with original INPUT."
   (let* ((resp-text (cdr (assoc 'content response)))
         (final-resp (cdr (assoc 'text (aref resp-text 0)))))
-        (elm--parse-response input final-resp)))
+        (elm--parse-response input final-resp code-block)))
 
-(defun elm--process-groq-response (input response)
+(defun elm--process-groq-response (input response &optional code-block)
   "Extract the content from the RESPONSE and add the original INPUT."
   (let* ((choices (cdr (assoc 'choices response)))
          (first-choice (aref choices 0))
          (message (cdr (assoc 'message first-choice)))
          (content (cdr (assoc 'content message))))
-    (elm--parse-response input content)))
+    (elm--parse-response input content code-block)))
 
-(defun elm--process-request (input)
+(defun elm--process-request (input &optional code-block)
   "Send the INPUT request to CLAUDE."
   (elm--read-auth-source)
   (elm--progress-reporter 'start)
@@ -301,9 +303,9 @@ Choose either the GET url or the chat url"
               (lambda (&key data &allow-other-keys)
                 (elm--progress-reporter 'done)
                 (cond
-                 ((string= "claude" elm--current-provider)(elm--process-claude-response input data))
-                  ((string= "groq" elm--current-provider)(elm--process-groq-response input data))
-                  (t (elm--process-ollama-response input data)))))
+                 ((string= "claude" elm--current-provider)(elm--process-claude-response input data code-block))
+                  ((string= "groq" elm--current-provider)(elm--process-groq-response input data code-block))
+                  (t (elm--process-ollama-response input data code-block)))))
     :error (cl-function
             (lambda (&key response &allow-other-keys)
               (elm--progress-reporter 'done)
@@ -313,11 +315,20 @@ Choose either the GET url or the chat url"
                 (message "Error: %s -%s" error-type error-message)))))))
 
 
+(defun elm--get-buffer-language ()
+  "Extract the language name from the current buffer's major mode."
+  (let* ((mode-name (symbol-name major-mode))
+         (lang-name (replace-regexp-in-string "-mode$" "" mode-name)))
+        lang-name))
+
 (defun elm-rewrite (prompt start end)
   "Rewrite specific using the PROMPT and area from START to END requested."
   (interactive "sPrompt: \nr")
-  (let ((input (buffer-substring-no-properties start end)))
-    (elm--process-request (concat input "\n" prompt))))
+  (let ((code-block (format "#+begin_src %s\n%s\n#+end_src" (elm--get-buffer-language)
+                       (buffer-substring-no-properties start end))))
+    (elm--process-request prompt code-block)))
+
+
 
 (defun elm-send-request (input)
   "Send the INPUT request to CLAUDE."
