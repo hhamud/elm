@@ -36,6 +36,9 @@
   :type 'file
   :group 'elm)
 
+;; set json-false to nil as stream is set to nil
+(setq json-false nil)
+
 (cl-deftype elm--providers ()
   "API providers for llms supported by this package."
   '(member groq claude ollama))
@@ -186,8 +189,10 @@ Choose either the GET url or the chat url"
   `(("model" . ,elm--current-model)
     ("messages" . ((("role" . "user")
                     ("content" . ,content))))
-    ,@(when (string-prefix-p "claude" elm--current-model)
-        '(("max_tokens" . 1024)))))
+    ,@(cond ((string= "claude" elm--current-provider)
+        '(("max_tokens" . 1024)))
+        ((string= "ollama" elm--current-provider)
+         '(("stream" . nil))))))
 
 
 (defun elm--update-model-list (json-file provider lisp-data)
@@ -262,6 +267,9 @@ Choose either the GET url or the chat url"
   "Convert any code CONTENT from markdown to org-code-blocks."
   (shell-command-to-string (format "pandoc -f markdown -t org <(echo %s)" (shell-quote-argument content))))
 
+(defun elm--process-ollama-response (input response)
+  "Process the RESPONSE from the CLAUDE API with original INPUT."
+        (elm--parse-response input (cdr (assoc 'content (cdr (assoc 'message response))))))
 
 (defun elm--process-claude-response (input response)
   "Process the RESPONSE from the CLAUDE API with original INPUT."
@@ -292,9 +300,10 @@ Choose either the GET url or the chat url"
     :success (cl-function
               (lambda (&key data &allow-other-keys)
                 (elm--progress-reporter 'done)
-                (if (string-prefix-p "claude" elm--current-model)
-                    (elm--process-claude-response input data)
-                    (elm--process-groq-response input data))))
+                (cond
+                 ((string= "claude" elm--current-provider)(elm--process-claude-response input data))
+                  ((string= "groq" elm--current-provider)(elm--process-groq-response input data))
+                  (t (elm--process-ollama-response input data)))))
     :error (cl-function
             (lambda (&key response &allow-other-keys)
               (elm--progress-reporter 'done)
