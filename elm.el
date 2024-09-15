@@ -101,6 +101,7 @@ provider urls and models list."
         (cadr model-url)
       (error "Model URL not found: %s" model))))
 
+
 (defun elm--extract-urls (data get)
   "Extract DATA from the model json file.
 Choose either the GET url or the chat url"
@@ -154,9 +155,8 @@ Choose either the GET url or the chat url"
     (maphash (lambda (provider provider-data)
                (let ((models (gethash "models" provider-data)))
                  (dolist (model models)
-                   (let ((full-model-name (format "%s-%s" provider model)))
-                     (push (cons full-model-name (cons full-model-name provider))
-                           model-options)))))
+                     (push (cons model (cons model provider))
+                           model-options))))
              json-data)
 
     ;; Sort model options alphabetically
@@ -281,8 +281,9 @@ Choose either the GET url or the chat url"
   "Send the INPUT request to CLAUDE."
   (elm--read-auth-source)
   (elm--progress-reporter 'start)
-  (let ((url (elm--get-api-url))
-        (headers (elm--construct-headers)))
+  (let* ((model (intern elm--current-provider))
+         (url (elm--create-url model 'chaturl))
+        (headers (elm--construct-headers model)))
   (request url
     :type "POST"
     :headers headers
