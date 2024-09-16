@@ -1,0 +1,34 @@
+name: Run Emacs Tests
+
+on:
+  # Trigger this workflow on push or pull requests
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Checkout the code from the repository
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # Install Emacs
+    - name: Install Emacs
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y emacs-nox
+
+    # Set up and run the tests
+    - name: Run Emacs tests
+      run: |
+        emacs --batch \
+          --eval "(require 'ert)" \
+          --load elm.el \
+          --load elm-tests.el \
+          --eval '(ert-run-tests-batch-and-exit)'

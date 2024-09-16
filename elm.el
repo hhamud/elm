@@ -40,10 +40,6 @@
 ;; set json-false to nil as stream is set to nil
 (setq json-false nil)
 
-(cl-deftype elm--providers ()
-  "API providers for llms supported by this package."
-  '(member groq claude ollama))
-
 (defvar elm--api-keys (make-hash-table :test 'equal)
   "Hash table to store API keys.")
 
@@ -251,7 +247,6 @@ Choose either the GET url or the chat url"
                 (message "Error: %s -%s" error-type error-message)))))))
 
 
-;;TODO: for the elm-rewrite, place the input at the top and the code block at the bottom
 (defun elm--parse-response (input output &optional code-block)
   "Parse the INPUT and OUTPUT into an org compatible format."
   (with-current-buffer (get-buffer-create "*elm*")
@@ -259,11 +254,13 @@ Choose either the GET url or the chat url"
     (newline)
     (newline)
     (org-mode)
-    (insert (format "* %s\n%s" input code-block))
+    (if (null code-block)
+        (insert (format "* %s" input))
+        (insert (format "* %s\n%s" input code-block)))
     (newline)
     (newline)
     (insert (elm--parse-code-blocks output))
-    (switch-to-buffer-other-window "*elm*")))
+    (switch-to-buffer-other-window (format "*elm--%s--%s*" elm--current-provider elm--current-model))))
 
 (defun elm--parse-code-blocks (content)
   "Convert any code CONTENT from markdown to org-code-blocks."
@@ -327,8 +324,6 @@ Choose either the GET url or the chat url"
   (let ((code-block (format "#+begin_src %s\n%s\n#+end_src" (elm--get-buffer-language)
                        (buffer-substring-no-properties start end))))
     (elm--process-request prompt code-block)))
-
-
 
 (defun elm-send-request (input)
   "Send the INPUT request to CLAUDE."
