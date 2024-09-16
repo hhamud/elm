@@ -24,6 +24,16 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y emacs-nox
 
+    # Install Emacs dependencies (packages) in batch mode
+    - name: Install Emacs Packages
+      run: |
+        emacs --batch \
+          --eval "(require 'package)" \
+          --eval "(add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t)" \
+          --eval "(package-initialize)" \
+          --eval "(unless package-archive-contents (package-refresh-contents))" \
+          --eval "(dolist (pkg '(request cl-lib transient auth-source json org)) (unless (package-installed-p pkg) (package-install pkg)))"
+
     # Set up and run the tests
     - name: Run Emacs tests
       run: |
