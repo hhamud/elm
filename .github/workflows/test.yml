@@ -30,8 +30,9 @@ jobs:
         emacs --batch \
           --eval "(require 'package)" \
           --eval "(add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t)" \
+          --eval "(add-to-list 'package-archives '(\"gnu\" . \"https://elpa.gnu.org/packages/\"))" \
           --eval "(package-initialize)" \
-          --eval "(unless package-archive-contents (package-refresh-contents))" \
+          --eval "(package-refresh-contents)" \
           --eval "(dolist (pkg '(request cl-lib transient auth-source json org)) (unless (package-installed-p pkg) (package-install pkg)))"
 
     # Set up and run the tests
