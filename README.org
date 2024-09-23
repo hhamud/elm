@@ -1,11 +1,11 @@
 #+TITLE: Elm
 
-An Emacs client:
+An Emacs client to interface with:
   - Claude
   - Groq
   - Ollama
 
-* Installation
+** Installation
 
 *** For Doom Emacs
 In =~/.doom.d/package.el=
