@@ -6,7 +6,8 @@ An Emacs client:
   - Ollama
 
 * Installation
-** For Doom Emacs
+
+*** For Doom Emacs
 In =~/.doom.d/package.el=
 #+begin_src elisp
 (package! elm
@@ -19,7 +20,7 @@ In =~/.doom.d/config.el=
 (use-package! elm)
 #+end_src
 
-** Vanilla Emacs
+*** Vanilla Emacs
 
 First git clone the package
 #+begin_src bash
