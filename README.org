@@ -10,8 +10,7 @@ An Emacs client:
 In =~/.doom.d/package.el=
 #+begin_src elisp
 (package! elm
-  :recipe (:fetcher github :repo "hhamud/elm" :files "elm.el")
-  :pin "8796efdc518fd542501467d97acb877c9bd34e5d")
+  :recipe (:fetcher github :repo "hhamud/elm" :files "elm.el"))
 
 #+end_src
 
@@ -23,9 +22,8 @@ In =~/.doom.d/config.el=
 ** Vanilla Emacs
 
 First git clone the package
-
 #+begin_src bash
-git clone https://github.com/hhamud/elm.git && cd elm && git checkout 8796efdc518fd542501467d97acb877c9bd34e5d
+git clone https://github.com/hhamud/elm.git
 #+end_src
 
 In =~/.emacs.d/init.el= or =~/.emacs=
@@ -39,3 +37,89 @@ In =~/.emacs.d/init.el= or =~/.emacs=
 ;;set the auth source file location if set differently
 (setq elm-env-file "/path/to/your/custom/env/file.gpg")
 #+end_src
+
+* Commands
+:PROPERTIES:
+:CUSTOM_ID: elm-interactive-functions
+:END:
+This package provides a set of interactive functions for working with
+the Elm in emacs.
+
+** elm-code-rewrite
+:PROPERTIES:
+:CUSTOM_ID: elm-code-rewrite
+:END:
+*** Description
+:PROPERTIES:
+:CUSTOM_ID: description
+:END:
+Rewrite a specific code block using the provided prompt and area from
+START to END requested.
+
+*** Usage
+:PROPERTIES:
+:CUSTOM_ID: usage
+:END:
+1. Select the code block you want to rewrite.
+2. Call =M-x elm-code-rewrite= (or use the keybinding assigned to it).
+3. Enter a prompt in the minibuffer.
+4. The result will appear in a separate window.
+
+** elm-text-rewrite
+:PROPERTIES:
+:CUSTOM_ID: elm-text-rewrite
+:END:
+*** Description
+:PROPERTIES:
+:CUSTOM_ID: description-1
+:END:
+Rewrite a specific text area using the provided prompt and area from
+START to END requested.
+
+*** Usage
+:PROPERTIES:
+:CUSTOM_ID: usage-1
+:END:
+1. Select the text area you want to rewrite.
+2. Call =M-x elm-text-rewrite= (or use the keybinding assigned to it).
+3. Enter a prompt in the minibuffer.
+4. The result will appear in a separate window
+
+
+** elm-send-request
+:PROPERTIES:
+:CUSTOM_ID: elm-send-request
+:END:
+*** Description
+:PROPERTIES:
+:CUSTOM_ID: description-2
+:END:
+Send a specific request to the llm providers.
+
+*** Usage
+:PROPERTIES:
+:CUSTOM_ID: usage-2
+:END:
+1. Call =M-x elm-send-request= (or use the keybinding assigned to it).
+2. Enter a request in the minibuffer.
+3. The request will be sent to the llm provider server.
+
+
+** elm-menu
+:PROPERTIES:
+:CUSTOM_ID: elm-menu
+:END:
+*** Description
+:PROPERTIES:
+:CUSTOM_ID: description-3
+:END:
+Open the Elm menu, which provides a convenient way to access various
+Elm-related settings.
+
+*** Usage
+:PROPERTIES:
+:CUSTOM_ID: usage-3
+:END:
+1. Call =M-x elm-menu= (or use the keybinding assigned to it).
+2. Select an option from the menu to perform the corresponding action.
+

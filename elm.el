@@ -26,7 +26,10 @@
 (require 'json)
 (require 'org)
 
+
+;; ------------------------------------------
 ;; Constants and Variables
+;; ------------------------------------------
 (defgroup elm nil
   "Emacs Language Model interface."
   :group 'tools
@@ -55,7 +58,10 @@
 
 (defvar elm--progress-reporter nil "Progress reporter for ELM.")
 
+
+;; ------------------------------------------
 ;; Utility Functions
+;; ------------------------------------------
 (defun elm--read-auth (&rest keys)
   "Read the authsource file using the KEYS as selector."
   (let ((result (apply #'auth-source-search keys)))
@@ -170,6 +176,9 @@ Choose either the GET url or the chat url"
       (message "Selected model: %s (Provider: %s)" elm--current-model elm--current-provider))))
 
 
+;; ------------------------------------------
+;; Transient Functions
+;; ------------------------------------------
 (transient-define-prefix elm-transient ()
   ["Arguments"
    ("m" "Model" elm--select-model)])
@@ -318,12 +327,23 @@ Choose either the GET url or the chat url"
          (lang-name (replace-regexp-in-string "-mode$" "" mode-name)))
         lang-name))
 
-(defun elm-rewrite (prompt start end)
+
+;; ------------------------------------------
+;; Interactive functions
+;; ------------------------------------------
+(defun elm-code-rewrite (prompt start end)
   "Rewrite specific using the PROMPT and area from START to END requested."
   (interactive "sPrompt: \nr")
   (let ((code-block (format "#+begin_src %s\n%s\n#+end_src" (elm--get-buffer-language)
                        (buffer-substring-no-properties start end))))
     (elm--process-request prompt code-block)))
+
+(defun elm-text-rewrite (prompt start end)
+  "Rewrite specific using the PROMPT and area from START to END requested."
+  (interactive "sPrompt: \nr")
+  (let ((code-block (buffer-substring-no-properties start end)))
+    (elm--process-request prompt code-block)))
+
 
 (defun elm-send-request (input)
   "Send the INPUT request to CLAUDE."
