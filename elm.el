@@ -258,7 +258,8 @@ Choose either the GET url or the chat url"
 
 (defun elm--parse-response (input output &optional code-block)
   "Parse the INPUT and OUTPUT into an org compatible format."
-  (with-current-buffer (get-buffer-create "*elm*")
+  (let ((buffer-name "*elm*"))
+  (with-current-buffer (get-buffer-create buffer-name)
     (goto-char (point-max))
     (newline)
     (newline)
@@ -269,7 +270,7 @@ Choose either the GET url or the chat url"
     (newline)
     (newline)
     (insert (elm--parse-code-blocks output))
-    (switch-to-buffer-other-window (format "*elm--%s--%s*" elm--current-provider elm--current-model))))
+    (switch-to-buffer-other-window buffer-name))))
 
 (defun elm--parse-code-blocks (content)
   "Convert any code CONTENT from markdown to org-code-blocks."
@@ -292,6 +293,7 @@ Choose either the GET url or the chat url"
          (message (cdr (assoc 'message first-choice)))
          (content (cdr (assoc 'content message))))
     (elm--parse-response input content code-block)))
+
 
 (defun elm--process-request (input &optional code-block)
   "Send the INPUT request to CLAUDE."
@@ -354,6 +356,21 @@ Choose either the GET url or the chat url"
   "Select the menu for elm."
   (interactive)
   (elm-transient))
+
+(defun elm-send-directory (directory instruction)
+  "Send all files in DIRECTORY to the current AI and model provider."
+  (interactive "DSelect directory: \nsPrompt: ")
+  (let ((files (directory-files directory 'full))
+        (output ""))
+    (dolist (file files)
+      (if (and (file-regular-p file) (file-readable-p file))
+                (with-temp-buffer
+                (insert-file-contents file)
+                ;;(goto-char (point-min))
+                (let ((content (buffer-string)))
+                  (setq output (concat output content))))
+        (message "File is not readable: %s" file)))
+        (elm--process-request (format "%s\n%s" instruction output))))
 
 
 
