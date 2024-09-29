@@ -1,5 +1,8 @@
 #+TITLE: Elm
 
+
+[[https://github.com/hhamud/elm/actions/workflows/test.yml][file:https://github.com/hhamud/elm/actions/workflows/test.yml/badge.svg]]
+
 An Emacs client to interface with:
   - Claude
   - Groq
