@@ -256,6 +256,15 @@ Choose either the GET url or the chat url"
                 (message "Error: %s -%s" error-type error-message)))))))
 
 
+(defun elm--create-or-switch-to-named-frame (frame-name)
+  "Switch FRAME to FRAME-NAME or create it."
+  (let ((existing-frame (cl-find-if (lambda (f)
+                                   (string= (frame-parameter f 'name) frame-name))
+                                 (frame-list))))
+    (if existing-frame
+        (select-frame-set-input-focus existing-frame)
+      (make-frame `((name . ,frame-name))))))
+
 (defun elm--parse-response (input output &optional code-block)
   "Parse the INPUT and OUTPUT into an org compatible format."
   (let ((buffer-name "*elm*"))
@@ -270,7 +279,8 @@ Choose either the GET url or the chat url"
     (newline)
     (newline)
     (insert (elm--parse-code-blocks output))
-    (switch-to-buffer-other-window buffer-name))))
+    (elm--create-or-switch-to-named-frame buffer-name))))
+
 
 (defun elm--parse-code-blocks (content)
   "Convert any code CONTENT from markdown to org-code-blocks."
@@ -294,7 +304,6 @@ Choose either the GET url or the chat url"
          (content (cdr (assoc 'content message))))
     (elm--parse-response input content code-block)))
 
-
 (defun elm--process-request (input &optional code-block)
   "Send the INPUT request to CLAUDE."
   (elm--read-auth-source)
@@ -305,7 +314,7 @@ Choose either the GET url or the chat url"
   (request url
     :type "POST"
     :headers headers
-    :data (json-encode (elm--construct-content input))
+    :data (json-encode (elm--construct-content (concat input code-block)))
     :parser 'json-read
     :success (cl-function
               (lambda (&key data &allow-other-keys)
@@ -329,10 +338,30 @@ Choose either the GET url or the chat url"
          (lang-name (replace-regexp-in-string "-mode$" "" mode-name)))
         lang-name))
 
-
 ;; ------------------------------------------
 ;; Interactive functions
 ;; ------------------------------------------
+(defun elm-run ()
+  "Reads the entire file from the most recent org header to the end of the buffer."
+  (interactive)
+  (save-excursion
+    (let ((start-point (point))
+          (end-point (point-max))
+          (content ""))
+      ;; Move to the beginning of the buffer
+      (goto-char (point-min))
+      ;; Find the most recent org header
+      (if (re-search-forward "^\*+ " nil t)
+          (progn
+            (beginning-of-line)
+            (setq start-point (point)))
+        (message "No org header found."))
+      ;; Read the content from the start point to the end of the buffer
+      (setq content (buffer-substring-no-properties start-point end-point))
+      ;; Do something with the content (e.g., display it in a message)
+      (message "Content from the most recent org header to the end:
+%s" content))))
+
 (defun elm-code-rewrite (prompt start end)
   "Rewrite specific using the PROMPT and area from START to END requested."
   (interactive "sPrompt: \nr")
@@ -356,21 +385,6 @@ Choose either the GET url or the chat url"
   "Select the menu for elm."
   (interactive)
   (elm-transient))
-
-(defun elm-send-directory (directory instruction)
-  "Send all files in DIRECTORY to the current AI and model provider."
-  (interactive "DSelect directory: \nsPrompt: ")
-  (let ((files (directory-files directory 'full))
-        (output ""))
-    (dolist (file files)
-      (if (and (file-regular-p file) (file-readable-p file))
-                (with-temp-buffer
-                (insert-file-contents file)
-                ;;(goto-char (point-min))
-                (let ((content (buffer-string)))
-                  (setq output (concat output content))))
-        (message "File is not readable: %s" file)))
-        (elm--process-request (format "%s\n%s" instruction output))))
 
 
 
