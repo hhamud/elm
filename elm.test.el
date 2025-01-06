@@ -116,7 +116,7 @@
                    '(("Content-Type" . "application/json")
                      ("x-api-key" . "fake-claude-key")
                      ("anthropic-version" . "2023-06-01"))))
-    ;; Test for GROQ
+    ;; Test for Groq
     (should (equal (elm--construct-headers "groq")
                    '(("Content-Type" . "application/json")
                      ("Authorization" . "Bearer fake-groq-key"))))))

@@ -58,6 +58,7 @@
 
 (defvar elm--progress-reporter nil "Progress reporter for ELM.")
 
+(defvar elm--token-limit 8192 "Max tokens setting in api.")
 
 ;; ------------------------------------------
 ;; Utility Functions
@@ -196,9 +197,10 @@ Choose either the GET url or the chat url"
     ("messages" . ((("role" . "user")
                     ("content" . ,content))))
     ,@(cond ((string= "claude" elm--current-provider)
-        '(("max_tokens" . 1024)))
+        `(("max_tokens" . ,elm--token-limit)))
         ((string= "ollama" elm--current-provider)
          '(("stream" . nil))))))
+
 
 
 (defun elm--update-model-list (json-file provider lisp-data)
@@ -237,23 +239,6 @@ Choose either the GET url or the chat url"
 
           (message "Updated model list for %s in %s" provider-key json-file))
       (error "Provider %s not found in the JSON file" provider-key))))
-
-(defun elm--update-models (model)
-  "Update the MODEL list for each provider."
-  (let ((url (elm--create-url model 'geturl)))
-    (request url
-      :type "GET"
-      :headers (elm--construct-headers model)
-      :parser 'json-read
-      :success (cl-function
-                (lambda (&key data &allow-other-keys)
-                (elm--update-model-list elm--models-file model data)))
-    :error (cl-function
-            (lambda (&key response &allow-other-keys)
-              (let* ((error-data (request-response-data response))
-                     (error-type (cdr (assoc 'type (cdr (assoc 'error error-data)))))
-                     (error-message (cdr (assoc 'message (cdr (assoc 'error error-data))))))
-                (message "Error: %s -%s" error-type error-message)))))))
 
 
 (defun elm--create-or-switch-to-named-frame (frame-name)
@@ -361,6 +346,25 @@ Choose either the GET url or the chat url"
       ;; Do something with the content (e.g., display it in a message)
       (message "Content from the most recent org header to the end:
 %s" content))))
+
+(defun elm-update-model (model)
+  "Update the MODEL list for a specfic provider."
+  (interactive "smodel: ")
+  (let ((url (elm--create-url model 'geturl)))
+    (request url
+      :type "GET"
+      :headers (elm--construct-headers model)
+      :parser 'json-read
+      :success (cl-function
+                (lambda (&key data &allow-other-keys)
+                (elm--update-model-list elm--models-file model data)))
+    :error (cl-function
+            (lambda (&key response &allow-other-keys)
+              (let* ((error-data (request-response-data response))
+                     (error-type (cdr (assoc 'type (cdr (assoc 'error error-data)))))
+                     (error-message (cdr (assoc 'message (cdr (assoc 'error error-data))))))
+                (message "Error: %s -%s" error-type error-message)))))))
+
 
 (defun elm-code-rewrite (prompt start end)
   "Rewrite specific using the PROMPT and area from START to END requested."
